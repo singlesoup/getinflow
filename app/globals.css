@@ -7,11 +7,12 @@
   -webkit-appearance: none;
   appearance: none;
   height: 3px;
-  background: #e7e5e4;
+  background: var(--track-bg, #e7e5e4);
   border-radius: 999px;
   outline: none;
   cursor: pointer;
   width: 100%;
+  transition: background 0.3s ease;
 }
 
 .focus-range::-webkit-slider-thumb {
@@ -19,21 +20,20 @@
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: #44403c;
+  background: var(--thumb-bg, #44403c);
   cursor: pointer;
-  transition: transform 0.15s ease, background 0.15s ease;
+  transition: transform 0.15s ease, background 0.3s ease;
 }
 
 .focus-range::-webkit-slider-thumb:hover {
   transform: scale(1.2);
-  background: #292524;
 }
 
 .focus-range::-moz-range-thumb {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: #44403c;
+  background: var(--thumb-bg, #44403c);
   border: none;
   cursor: pointer;
 }
