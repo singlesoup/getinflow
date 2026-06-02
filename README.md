@@ -1,4 +1,4 @@
-"# 🎯 getinflow
+"# 🎯 [getinflow](https://getinflow.vercel.app)
 
 > **Reach your flow state faster**  
 > A minimalist Pomodoro timer, task manager, and ambient soundscape app designed to eliminate distractions and accelerate deep work.
