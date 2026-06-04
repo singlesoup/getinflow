@@ -324,12 +324,12 @@ function PomodoroTimer({ activeTaskId, activeTaskName, onClearTask, onSessionEnd
       if (!document.hidden) {
         updateTimer()
       } else {
-        lastUpdateRef.current = Date.now()
+        endTimeRef.current = Date.now()
       }
     }
 
     if (isRunning) {
-      lastUpdateRef.current = Date.now()
+      endTimeRef.current = Date.now()
       intervalRef.current = setInterval(updateTimer, 1000)
       document.addEventListener('visibilitychange', handleVisibilityChange)
     } else {
@@ -356,7 +356,7 @@ function PomodoroTimer({ activeTaskId, activeTaskName, onClearTask, onSessionEnd
     } else {
       // Starting: record session start if fresh
       if (!sessionStartRef.current) sessionStartRef.current = new Date()
-      lastUpdateRef.current = Date.now()
+      endTimeRef.current = Date.now()
     }
     setIsRunning(r => !r)
   }
