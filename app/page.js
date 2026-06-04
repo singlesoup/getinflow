@@ -322,7 +322,7 @@ function PomodoroTimer({ activeTaskId, activeTaskName, onClearTask, onSessionEnd
     const handleVisibilityChange = () => {
       if (!isRunning) return
       if (!document.hidden) {
-        updateTimer()
+        updateTimeFromTimestamp()
       } else {
         endTimeRef.current = Date.now()
       }
@@ -330,7 +330,7 @@ function PomodoroTimer({ activeTaskId, activeTaskName, onClearTask, onSessionEnd
 
     if (isRunning) {
       endTimeRef.current = Date.now()
-      intervalRef.current = setInterval(updateTimer, 1000)
+      intervalRef.current = setInterval(updateTimeFromTimestamp, 1000)
       document.addEventListener('visibilitychange', handleVisibilityChange)
     } else {
       clearInterval(intervalRef.current)
