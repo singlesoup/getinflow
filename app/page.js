@@ -256,11 +256,12 @@ function PomodoroTimer({ activeTaskId, activeTaskName, onClearTask, onSessionEnd
   const [timeLeft, setTimeLeft] = useState(25 * 60)
   const [isRunning, setIsRunning] = useState(false)
 
-  const intervalRef      = useRef(null)
-  const sessionStartRef  = useRef(null)
-  const modeRef          = useRef(mode)
-  const activeTaskIdRef  = useRef(activeTaskId)
-  const onSessionEndRef  = useRef(onSessionEnd)
+  const intervalRef = useRef(null)
+  const sessionStartRef = useRef(null)
+  const lastUpdateRef = useRef(null)
+  const modeRef = useRef(mode)
+  const activeTaskIdRef = useRef(activeTaskId)
+  const onSessionEndRef = useRef(onSessionEnd)
 
   // Keep refs in sync
   useEffect(() => { modeRef.current = mode }, [mode])
@@ -283,34 +284,61 @@ function PomodoroTimer({ activeTaskId, activeTaskName, onClearTask, onSessionEnd
     sessionStartRef.current = null
   }
 
+  const updateTimer = () => {
+    if (!lastUpdateRef.current) return
+    const now = Date.now()
+    const elapsed = Math.floor((now - lastUpdateRef.current) / 1000)
+    if (elapsed <= 0) return
+
+    lastUpdateRef.current = now
+    setTimeLeft(prev => {
+      const next = prev - elapsed
+      if (next <= 0) {
+        clearInterval(intervalRef.current)
+        setIsRunning(false)
+        flushSession(DURATIONS[modeRef.current], true)
+        playBell()
+        return 0
+      }
+      return next
+    })
+  }
+
   useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!isRunning) return
+      if (!document.hidden) {
+        updateTimer()
+      } else {
+        lastUpdateRef.current = Date.now()
+      }
+    }
+
     if (isRunning) {
-      intervalRef.current = setInterval(() => {
-        setTimeLeft(prev => {
-          if (prev <= 1) {
-            clearInterval(intervalRef.current)
-            setIsRunning(false)
-            flushSession(DURATIONS[modeRef.current], true)
-            playBell()
-            return 0
-          }
-          return prev - 1
-        })
-      }, 1000)
+      lastUpdateRef.current = Date.now()
+      intervalRef.current = setInterval(updateTimer, 1000)
+      document.addEventListener('visibilitychange', handleVisibilityChange)
     } else {
       clearInterval(intervalRef.current)
     }
-    return () => clearInterval(intervalRef.current)
+
+    return () => {
+      clearInterval(intervalRef.current)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
   }, [isRunning])  // eslint-disable-line
 
   const handleStartPause = () => {
     if (isRunning) {
       // Pausing: save elapsed time up to now
+      updateTimer()
       const elapsed = DURATIONS[mode] - timeLeft
       flushSession(elapsed, false)
+      lastUpdateRef.current = null
     } else {
       // Starting: record session start if fresh
       if (!sessionStartRef.current) sessionStartRef.current = new Date()
+      lastUpdateRef.current = Date.now()
     }
     setIsRunning(r => !r)
   }
@@ -322,6 +350,7 @@ function PomodoroTimer({ activeTaskId, activeTaskName, onClearTask, onSessionEnd
     setTimeLeft(DURATIONS[newMode])
     setIsRunning(false)
     sessionStartRef.current = null
+    lastUpdateRef.current = null
   }
 
   const reset = () => {
@@ -330,6 +359,7 @@ function PomodoroTimer({ activeTaskId, activeTaskName, onClearTask, onSessionEnd
     setTimeLeft(DURATIONS[mode])
     setIsRunning(false)
     sessionStartRef.current = null
+    lastUpdateRef.current = null
   }
 
   const progress = (DURATIONS[mode] - timeLeft) / DURATIONS[mode]
