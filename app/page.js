@@ -49,7 +49,7 @@ function playBell() {
       osc.start(t)
       osc.stop(t + 1.4)
     })
-  } catch {}
+  } catch { }
 }
 
 // =============================================
@@ -258,6 +258,7 @@ function PomodoroTimer({ activeTaskId, activeTaskName, onClearTask, onSessionEnd
 
   const intervalRef = useRef(null)
   const sessionStartRef = useRef(null)
+  const endTimeRef = useRef(null)
   const modeRef = useRef(mode)
   const activeTaskIdRef = useRef(activeTaskId)
   const onSessionEndRef = useRef(onSessionEnd)
@@ -282,26 +283,40 @@ function PomodoroTimer({ activeTaskId, activeTaskName, onClearTask, onSessionEnd
     })
     sessionStartRef.current = null
   }
-
-  const updateTimer = () => {
-    if (!lastUpdateRef.current) return
+  // Update time based on actual elapsed time (fixes background tab throttling)
+  const updateTimeFromTimestamp = () => {
+    if (!endTimeRef.current) return
     const now = Date.now()
-    const elapsed = Math.floor((now - lastUpdateRef.current) / 1000)
-    if (elapsed <= 0) return
+    const remaining = Math.max(0, Math.ceil((endTimeRef.current - now) / 1000))
 
-    lastUpdateRef.current = now
-    setTimeLeft(prev => {
-      const next = prev - elapsed
-      if (next <= 0) {
-        clearInterval(intervalRef.current)
-        setIsRunning(false)
-        flushSession(DURATIONS[modeRef.current], true)
-        playBell()
-        return 0
-      }
-      return next
-    })
+    if (remaining === 0) {
+      setTimeLeft(0)
+      setIsRunning(false)
+      clearInterval(intervalRef.current)
+      flushSession(DURATIONS[modeRef.current], true)
+      playBell()
+      endTimeRef.current = null
+    } else {
+      setTimeLeft(remaining)
+    }
   }
+
+  // Handle page visibility changes to maintain accurate time
+  useEffect(() => {
+    if (isRunning) {
+      // Set the target end time when starting
+      if (!endTimeRef.current) {
+        endTimeRef.current = Date.now() + (timeLeft * 1000)
+      }
+      intervalRef.current = setInterval(() => {
+        updateTimeFromTimestamp()
+      }, 1000)
+    } else {
+      clearInterval(intervalRef.current)
+      endTimeRef.current = null
+    }
+    return () => clearInterval(intervalRef.current)
+  }, [isRunning]) // eslint-disable-line
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -330,10 +345,14 @@ function PomodoroTimer({ activeTaskId, activeTaskName, onClearTask, onSessionEnd
   const handleStartPause = () => {
     if (isRunning) {
       // Pausing: save elapsed time up to now
-      updateTimer()
+      if (endTimeRef.current) {
+        const now = Date.now()
+        const remaining = Math.max(0, Math.ceil((endTimeRef.current - now) / 1000))
+        setTimeLeft(remaining)
+      }
       const elapsed = DURATIONS[mode] - timeLeft
       flushSession(elapsed, false)
-      lastUpdateRef.current = null
+      endTimeRef.current = null
     } else {
       // Starting: record session start if fresh
       if (!sessionStartRef.current) sessionStartRef.current = new Date()
@@ -344,21 +363,35 @@ function PomodoroTimer({ activeTaskId, activeTaskName, onClearTask, onSessionEnd
 
   const switchMode = (newMode) => {
     clearInterval(intervalRef.current)
-    if (isRunning) flushSession(DURATIONS[mode] - timeLeft, false)
+    if (isRunning) {
+      if (endTimeRef.current) {
+        const now = Date.now()
+        const remaining = Math.max(0, Math.ceil((endTimeRef.current - now) / 1000))
+        setTimeLeft(remaining)
+      }
+      flushSession(DURATIONS[mode] - timeLeft, false)
+    }
     setMode(newMode)
     setTimeLeft(DURATIONS[newMode])
     setIsRunning(false)
     sessionStartRef.current = null
-    lastUpdateRef.current = null
+    endTimeRef.current = null
   }
 
   const reset = () => {
     clearInterval(intervalRef.current)
-    if (isRunning) flushSession(DURATIONS[mode] - timeLeft, false)
+    if (isRunning) {
+      if (endTimeRef.current) {
+        const now = Date.now()
+        const remaining = Math.max(0, Math.ceil((endTimeRef.current - now) / 1000))
+        setTimeLeft(remaining)
+      }
+      flushSession(DURATIONS[mode] - timeLeft, false)
+    }
     setTimeLeft(DURATIONS[mode])
     setIsRunning(false)
     sessionStartRef.current = null
-    lastUpdateRef.current = null
+    endTimeRef.current = null
   }
 
   const progress = (DURATIONS[mode] - timeLeft) / DURATIONS[mode]
@@ -394,8 +427,8 @@ function PomodoroTimer({ activeTaskId, activeTaskName, onClearTask, onSessionEnd
             className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isRunning ? 'animate-pulse' : ''}`}
             style={{ backgroundColor: isRunning ? '#22c55e' : faint }}
           />
-          <span 
-            className="text-xs max-w-[180px] truncate" 
+          <span
+            className="text-xs max-w-[180px] truncate"
             style={{ color: accent }}
             title={activeTaskName}
           >
@@ -642,49 +675,49 @@ function TodoList({ todos, onPersist, activeTaskId, onTaskSelect, dark }) {
                   </button>
                 </div>
               ) : (
-              <>
-                {/* Edit button — show on hover */}
-                {!todo.done && (
-                  <button
-                    onClick={() => startEdit(todo)}
-                    className="opacity-0 group-hover:opacity-100 w-7 h-7 flex items-center justify-center rounded-lg transition-all active:scale-90"
-                    style={{ backgroundColor: dark ? '#292524' : '#f0efee', color: muted }}
-                    title="Edit task"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                    </svg>
-                  </button>
-                )}
+                <>
+                  {/* Edit button — show on hover */}
+                  {!todo.done && (
+                    <button
+                      onClick={() => startEdit(todo)}
+                      className="opacity-0 group-hover:opacity-100 w-7 h-7 flex items-center justify-center rounded-lg transition-all active:scale-90"
+                      style={{ backgroundColor: dark ? '#292524' : '#f0efee', color: muted }}
+                      title="Edit task"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                      </svg>
+                    </button>
+                  )}
 
-                {/* Focus button — only for incomplete tasks */}
-                {!todo.done && (
-                  <button
-                    onClick={() => onTaskSelect(isActive ? null : todo.id)}
-                    className="transition-all rounded-lg px-2 py-1 text-[10px] font-medium flex-shrink-0"
-                    style={{
-                      opacity: isActive ? 1 : undefined,
-                      backgroundColor: isActive ? (dark ? '#44403c' : '#e7e5e4') : (dark ? '#292524' : '#f0efee'),
-                      color: isActive ? (dark ? '#fafaf9' : '#44403c') : muted,
-                      // show on hover via group — but always show when active
-                      display: isActive ? 'flex' : undefined,
-                    }}
-                    title={isActive ? 'Stop tracking this task' : 'Start Pomodoro for this task'}
-                  >
-                    {isActive ? '✓ Focusing' : '⏱ Focus'}
-                  </button>
-                )}
+                  {/* Focus button — only for incomplete tasks */}
+                  {!todo.done && (
+                    <button
+                      onClick={() => onTaskSelect(isActive ? null : todo.id)}
+                      className="transition-all rounded-lg px-2 py-1 text-[10px] font-medium flex-shrink-0"
+                      style={{
+                        opacity: isActive ? 1 : undefined,
+                        backgroundColor: isActive ? (dark ? '#44403c' : '#e7e5e4') : (dark ? '#292524' : '#f0efee'),
+                        color: isActive ? (dark ? '#fafaf9' : '#44403c') : muted,
+                        // show on hover via group — but always show when active
+                        display: isActive ? 'flex' : undefined,
+                      }}
+                      title={isActive ? 'Stop tracking this task' : 'Start Pomodoro for this task'}
+                    >
+                      {isActive ? '✓ Focusing' : '⏱ Focus'}
+                    </button>
+                  )}
 
-                {/* Delete */}
-                <button
-                  onClick={() => remove(todo.id)}
-                  className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center text-base leading-none transition-all"
-                  style={{ color: faint }}
-                >
-                  ×
-                </button>
-              </>
+                  {/* Delete */}
+                  <button
+                    onClick={() => remove(todo.id)}
+                    className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center text-base leading-none transition-all"
+                    style={{ color: faint }}
+                  >
+                    ×
+                  </button>
+                </>
               )}
             </div>
           )
