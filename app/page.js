@@ -130,14 +130,14 @@ function SettingsModal({ todos, sessions, onImport, onClose, dark }) {
   }
 
   // Theme tokens
-  const bg      = dark ? '#1c1917' : '#ffffff'
-  const subBg   = dark ? '#0c0a09' : '#fafaf9'
-  const border  = dark ? '#44403c' : '#e7e5e4'
-  const text    = dark ? '#e7e5e4' : '#1c1917'
-  const muted   = dark ? '#78716c' : '#a8a29e'
+  const bg = dark ? '#1c1917' : '#ffffff'
+  const subBg = dark ? '#0c0a09' : '#fafaf9'
+  const border = dark ? '#44403c' : '#e7e5e4'
+  const text = dark ? '#e7e5e4' : '#1c1917'
+  const muted = dark ? '#78716c' : '#a8a29e'
   const primary = dark ? '#e7e5e4' : '#1c1917'
   const primTxt = dark ? '#1c1917' : '#fafaf9'
-  const warn    = '#f59e0b'
+  const warn = '#f59e0b'
 
   return (
     <div
@@ -233,7 +233,7 @@ function SettingsModal({ todos, sessions, onImport, onClose, dark }) {
           <div className="rounded-xl p-3" style={{ backgroundColor: subBg, border: `1px solid ${border}` }}>
             <p className="text-[10px] font-semibold uppercase tracking-[0.2em] mb-2" style={{ color: muted }}>Export Schema</p>
             <pre className="text-[10px] leading-relaxed overflow-x-auto" style={{ color: muted }}>
-{`{
+              {`{
   taskName,        // Task title
   dateCreated,     // e.g. "Jun 1, 2025"
   timeSpentFormatted, // e.g. "25m 30s"
@@ -252,13 +252,12 @@ function SettingsModal({ todos, sessions, onImport, onClose, dark }) {
 // =============================================
 
 function PomodoroTimer({ activeTaskId, activeTaskName, onClearTask, onSessionEnd, dark }) {
-  const [mode, setMode]         = useState('focus')
+  const [mode, setMode] = useState('focus')
   const [timeLeft, setTimeLeft] = useState(25 * 60)
   const [isRunning, setIsRunning] = useState(false)
 
   const intervalRef = useRef(null)
   const sessionStartRef = useRef(null)
-  const lastUpdateRef = useRef(null)
   const modeRef = useRef(mode)
   const activeTaskIdRef = useRef(activeTaskId)
   const onSessionEndRef = useRef(onSessionEnd)
@@ -363,9 +362,9 @@ function PomodoroTimer({ activeTaskId, activeTaskName, onClearTask, onSessionEnd
   }
 
   const progress = (DURATIONS[mode] - timeLeft) / DURATIONS[mode]
-  const muted     = dark ? '#78716c' : '#a8a29e'
-  const faint     = dark ? '#57534e' : '#d6d3d1'
-  const accent    = dark ? '#a8a29e' : '#78716c'
+  const muted = dark ? '#78716c' : '#a8a29e'
+  const faint = dark ? '#57534e' : '#d6d3d1'
+  const accent = dark ? '#a8a29e' : '#78716c'
 
   return (
     <div className="flex flex-col items-center gap-8 w-full">
@@ -395,7 +394,11 @@ function PomodoroTimer({ activeTaskId, activeTaskName, onClearTask, onSessionEnd
             className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isRunning ? 'animate-pulse' : ''}`}
             style={{ backgroundColor: isRunning ? '#22c55e' : faint }}
           />
-          <span className="text-xs max-w-[180px] truncate" style={{ color: accent }}>
+          <span 
+            className="text-xs max-w-[180px] truncate" 
+            style={{ color: accent }}
+            title={activeTaskName}
+          >
             {activeTaskName}
           </span>
           <button onClick={onClearTask} className="text-xs leading-none" style={{ color: faint }}>×</button>
@@ -443,6 +446,10 @@ function PomodoroTimer({ activeTaskId, activeTaskName, onClearTask, onSessionEnd
 
 function TodoList({ todos, onPersist, activeTaskId, onTaskSelect, dark }) {
   const [input, setInput] = useState('')
+  const [editingId, setEditingId] = useState(null)
+  const [editText, setEditText] = useState('')
+  const editInputRef = useRef(null)
+
 
   const add = () => {
     const text = input.trim()
@@ -467,12 +474,53 @@ function TodoList({ todos, onPersist, activeTaskId, onTaskSelect, dark }) {
     if (activeTaskId === id) onTaskSelect(null)
   }
 
-  const pending = todos.filter(t => !t.done)
-  const done    = todos.filter(t => t.done)
-  const sorted  = [...pending, ...done]
 
-  const muted   = dark ? '#78716c' : '#a8a29e'
-  const faint   = dark ? '#57534e' : '#d6d3d1'
+  // Start editing a task
+  const startEdit = (todo) => {
+    setEditingId(todo.id)
+    setEditText(todo.text)
+    // Focus the input after state update
+    setTimeout(() => editInputRef.current?.focus(), 0)
+  }
+
+  // Save edited task
+  const saveEdit = () => {
+    const trimmed = editText.trim()
+    if (!trimmed) {
+      cancelEdit()
+      return
+    }
+    const updated = todos.map(t =>
+      t.id === editingId ? { ...t, text: trimmed } : t
+    )
+    onPersist(updated)
+    setEditingId(null)
+    setEditText('')
+  }
+
+  // Cancel editing
+  const cancelEdit = () => {
+    setEditingId(null)
+    setEditText('')
+  }
+
+  // Handle keyboard shortcuts in edit mode
+  const handleEditKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      saveEdit()
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      cancelEdit()
+    }
+  }
+
+  const pending = todos.filter(t => !t.done)
+  const done = todos.filter(t => t.done)
+  const sorted = [...pending, ...done]
+
+  const muted = dark ? '#78716c' : '#a8a29e'
+  const faint = dark ? '#57534e' : '#d6d3d1'
   const primary = { backgroundColor: dark ? '#e7e5e4' : '#1c1917', color: dark ? '#1c1917' : '#fafaf9' }
 
   return (
@@ -505,7 +553,8 @@ function TodoList({ todos, onPersist, activeTaskId, onTaskSelect, dark }) {
         )}
         {sorted.map(todo => {
           const isActive = activeTaskId === todo.id
-          const timeFmt  = formatDuration(todo.timeSpentSeconds)
+          const isEditing = editingId === todo.id
+          const timeFmt = formatDuration(todo.timeSpentSeconds)
 
           return (
             <div
@@ -519,7 +568,7 @@ function TodoList({ todos, onPersist, activeTaskId, onTaskSelect, dark }) {
                 className="w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all"
                 style={{
                   backgroundColor: todo.done ? (dark ? '#a8a29e' : '#78716c') : 'transparent',
-                  borderColor:     todo.done ? (dark ? '#a8a29e' : '#78716c') : (dark ? '#57534e' : '#d6d3d1'),
+                  borderColor: todo.done ? (dark ? '#a8a29e' : '#78716c') : (dark ? '#57534e' : '#d6d3d1'),
                 }}
               >
                 {todo.done && (
@@ -529,50 +578,114 @@ function TodoList({ todos, onPersist, activeTaskId, onTaskSelect, dark }) {
                 )}
               </button>
 
-              {/* Text + time badge */}
+              {/* Text + time badge OR Edit input */}
               <div className="flex-1 min-w-0">
-                <span
-                  className="text-sm leading-relaxed block truncate"
-                  style={{
-                    color: todo.done ? faint : (dark ? '#e7e5e4' : '#57534e'),
-                    textDecoration: todo.done ? 'line-through' : 'none',
-                  }}
-                >
-                  {todo.text}
-                </span>
-                {timeFmt && (
-                  <span className="text-[10px]" style={{ color: isActive ? (dark ? '#a8a29e' : '#78716c') : faint }}>
-                    ⏱ {timeFmt} focused
-                  </span>
+                {isEditing ? (
+                  <input
+                    value={editText}
+                    onChange={e => setEditText(e.target.value)}
+                    onKeyDown={handleEditKeyDown}
+                    onBlur={saveEdit}
+                    autoFocus
+                    className="bg-transparent border-none outline-none text-sm leading-relaxed block truncate"
+                    style={{
+                      backgroundColor: dark ? '#292524' : '#ffffff',
+                      color: dark ? '#e7e5e4' : '#44403c',
+                      border: `1px solid ${dark ? '#57534e' : '#d6d3d1'}`,
+                    }}
+                  />
+                ) : (
+                  <>
+                    <span
+                      className="text-sm leading-relaxed block truncate"
+                      title={todo.text}
+                      style={{
+                        color: todo.done ? faint : (dark ? '#e7e5e4' : '#57534e'),
+                        textDecoration: todo.done ? 'line-through' : 'none',
+                      }}
+                    >
+                      {todo.text}
+                    </span>
+                    {timeFmt && (
+                      <span className="text-[10px]" style={{ color: isActive ? (dark ? '#a8a29e' : '#78716c') : faint }}>
+                        ⏱ {timeFmt} focused
+                      </span>
+                    )}
+                  </>
                 )}
+
               </div>
 
-              {/* Focus button — only for incomplete tasks */}
-              {!todo.done && (
-                <button
-                  onClick={() => onTaskSelect(isActive ? null : todo.id)}
-                  className="transition-all rounded-lg px-2 py-1 text-[10px] font-medium flex-shrink-0"
-                  style={{
-                    opacity: isActive ? 1 : undefined,
-                    backgroundColor: isActive ? (dark ? '#44403c' : '#e7e5e4') : (dark ? '#292524' : '#f0efee'),
-                    color:           isActive ? (dark ? '#fafaf9' : '#44403c') : muted,
-                    // show on hover via group — but always show when active
-                    display:         isActive ? 'flex' : undefined,
-                  }}
-                  title={isActive ? 'Stop tracking this task' : 'Start Pomodoro for this task'}
-                >
-                  {isActive ? '✓ Focusing' : '⏱ Focus'}
-                </button>
-              )}
+              {/* Edit mode: Save & Cancel buttons */}
+              {isEditing ? (
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <button
+                    onClick={saveEdit}
+                    className="w-7 h-7 flex items-center justify-center rounded-lg transition-all active:scale-90"
+                    style={{ backgroundColor: dark ? '#22c55e' : '#16a34a', color: '#ffffff' }}
+                    title="Save (Enter)"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  </button>
+                  <button
+                    onClick={cancelEdit}
+                    className="w-7 h-7 flex items-center justify-center rounded-lg transition-all active:scale-90"
+                    style={{ backgroundColor: dark ? '#292524' : '#e7e5e4', color: muted }}
+                    title="Cancel (Escape)"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="18" y1="6" x2="6" y2="18"></line>
+                      <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                  </button>
+                </div>
+              ) : (
+              <>
+                {/* Edit button — show on hover */}
+                {!todo.done && (
+                  <button
+                    onClick={() => startEdit(todo)}
+                    className="opacity-0 group-hover:opacity-100 w-7 h-7 flex items-center justify-center rounded-lg transition-all active:scale-90"
+                    style={{ backgroundColor: dark ? '#292524' : '#f0efee', color: muted }}
+                    title="Edit task"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                    </svg>
+                  </button>
+                )}
 
-              {/* Delete */}
-              <button
-                onClick={() => remove(todo.id)}
-                className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center text-base leading-none transition-all"
-                style={{ color: faint }}
-              >
-                ×
-              </button>
+                {/* Focus button — only for incomplete tasks */}
+                {!todo.done && (
+                  <button
+                    onClick={() => onTaskSelect(isActive ? null : todo.id)}
+                    className="transition-all rounded-lg px-2 py-1 text-[10px] font-medium flex-shrink-0"
+                    style={{
+                      opacity: isActive ? 1 : undefined,
+                      backgroundColor: isActive ? (dark ? '#44403c' : '#e7e5e4') : (dark ? '#292524' : '#f0efee'),
+                      color: isActive ? (dark ? '#fafaf9' : '#44403c') : muted,
+                      // show on hover via group — but always show when active
+                      display: isActive ? 'flex' : undefined,
+                    }}
+                    title={isActive ? 'Stop tracking this task' : 'Start Pomodoro for this task'}
+                  >
+                    {isActive ? '✓ Focusing' : '⏱ Focus'}
+                  </button>
+                )}
+
+                {/* Delete */}
+                <button
+                  onClick={() => remove(todo.id)}
+                  className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center text-base leading-none transition-all"
+                  style={{ color: faint }}
+                >
+                  ×
+                </button>
+              </>
+              )}
             </div>
           )
         })}
@@ -586,10 +699,10 @@ function TodoList({ todos, onPersist, activeTaskId, onTaskSelect, dark }) {
 // =============================================
 
 const SOUNDS = [
-  { id: 'rain',   label: 'Rain',        emoji: '🌧' },
-  { id: 'forest', label: 'Forest',      emoji: '🌿' },
-  { id: 'ocean',  label: 'Ocean',       emoji: '🌊' },
-  { id: 'white',  label: 'White Noise', emoji: '〰' },
+  { id: 'rain', label: 'Rain', emoji: '🌧' },
+  { id: 'forest', label: 'Forest', emoji: '🌿' },
+  { id: 'ocean', label: 'Ocean', emoji: '🌊' },
+  { id: 'white', label: 'White Noise', emoji: '〰' },
 ]
 
 function SoundPlayer({ dark }) {
@@ -601,7 +714,7 @@ function SoundPlayer({ dark }) {
     try {
       const v = localStorage.getItem('focus-volume')
       if (v !== null) setVolume(parseFloat(v))
-    } catch {}
+    } catch { }
     return () => { if (audioRef.current) { audioRef.current.pause(); audioRef.current = null } }
   }, [])
 
@@ -609,28 +722,28 @@ function SoundPlayer({ dark }) {
     if (audioRef.current) { audioRef.current.pause(); audioRef.current.currentTime = 0; audioRef.current = null }
     if (active === id) {
       setActive(null)
-      try { localStorage.removeItem('focus-sound') } catch {}
+      try { localStorage.removeItem('focus-sound') } catch { }
       return
     }
     try {
-      const audio = new Audio(`/audio/${id}.wav`)
+      const audio = new Audio(`/audio/${id}.mp3`)
       audio.loop = true
       audio.volume = volume
-      audio.play().catch(() => {})
+      audio.play().catch(() => { })
       audioRef.current = audio
       setActive(id)
-      try { localStorage.setItem('focus-sound', id) } catch {}
-    } catch {}
+      try { localStorage.setItem('focus-sound', id) } catch { }
+    } catch { }
   }
 
   const handleVolume = (e) => {
     const v = parseFloat(e.target.value)
     setVolume(v)
     if (audioRef.current) audioRef.current.volume = v
-    try { localStorage.setItem('focus-volume', String(v)) } catch {}
+    try { localStorage.setItem('focus-volume', String(v)) } catch { }
   }
 
-  const muted   = dark ? '#78716c' : '#a8a29e'
+  const muted = dark ? '#78716c' : '#a8a29e'
   const trackBg = dark ? '#292524' : '#e7e5e4'
   const thumbBg = dark ? '#e7e5e4' : '#44403c'
 
@@ -647,7 +760,7 @@ function SoundPlayer({ dark }) {
               className="flex flex-col items-center gap-1.5 py-3.5 rounded-xl transition-all active:scale-95"
               style={{
                 backgroundColor: on ? (dark ? '#e7e5e4' : '#1c1917') : (dark ? '#1c1917' : '#f5f5f4'),
-                color:           on ? (dark ? '#1c1917' : '#fafaf9') : (dark ? '#a8a29e' : '#78716c'),
+                color: on ? (dark ? '#1c1917' : '#fafaf9') : (dark ? '#a8a29e' : '#78716c'),
               }}
             >
               <span className="text-base leading-none">{s.emoji}</span>
@@ -724,12 +837,12 @@ function SettingsButton({ onClick, dark }) {
 // =============================================
 
 export default function App() {
-  const [dark, setDark]               = useState(false)
-  const [todos, setTodos]             = useState([])
-  const [sessions, setSessions]       = useState([])
+  const [dark, setDark] = useState(false)
+  const [todos, setTodos] = useState([])
+  const [sessions, setSessions] = useState([])
   const [activeTaskId, setActiveTaskId] = useState(null)
   const [showSettings, setShowSettings] = useState(false)
-  const [mounted, setMounted]         = useState(false)
+  const [mounted, setMounted] = useState(false)
 
   // ── Load persisted data on first mount ──
   useEffect(() => {
@@ -740,7 +853,7 @@ export default function App() {
       if (t) setTodos(JSON.parse(t))
       if (s) setSessions(JSON.parse(s))
       if (d === '1') setDark(true)
-    } catch {}
+    } catch { }
     setMounted(true)
   }, [])
 
@@ -748,20 +861,20 @@ export default function App() {
   useEffect(() => {
     if (!mounted) return
     document.documentElement.classList.toggle('dark', dark)
-    try { localStorage.setItem('focus-dark', dark ? '1' : '0') } catch {}
+    try { localStorage.setItem('focus-dark', dark ? '1' : '0') } catch { }
   }, [dark, mounted])
 
   // ── Persist todos helper ──
   const persistTodos = (next) => {
     setTodos(next)
-    try { localStorage.setItem('focus-todos', JSON.stringify(next)) } catch {}
+    try { localStorage.setItem('focus-todos', JSON.stringify(next)) } catch { }
   }
 
   // ── Called by PomodoroTimer when a session ends (pause OR complete) ──
   const handleSessionEnd = (session) => {
     setSessions(prev => {
       const next = [...prev, session]
-      try { localStorage.setItem('focus-sessions', JSON.stringify(next)) } catch {}
+      try { localStorage.setItem('focus-sessions', JSON.stringify(next)) } catch { }
       return next
     })
 
@@ -773,7 +886,7 @@ export default function App() {
             ? { ...t, timeSpentSeconds: (t.timeSpentSeconds || 0) + session.durationSeconds }
             : t
         )
-        try { localStorage.setItem('focus-todos', JSON.stringify(next)) } catch {}
+        try { localStorage.setItem('focus-todos', JSON.stringify(next)) } catch { }
         return next
       })
     }
@@ -782,25 +895,25 @@ export default function App() {
   // ── Import handler ──
   const handleImport = (data) => {
     const newTodos = (data.todos || []).map(t => ({
-      id:               t.id || Date.now().toString(),
-      text:             t.taskName || t.text || '',
-      done:             t.done ?? (t.completionStatus === 'Done'),
-      createdAt:        t.createdAt || new Date().toISOString(),
-      doneAt:           t.doneAt || null,
+      id: t.id || Date.now().toString(),
+      text: t.taskName || t.text || '',
+      done: t.done ?? (t.completionStatus === 'Done'),
+      createdAt: t.createdAt || new Date().toISOString(),
+      doneAt: t.doneAt || null,
       timeSpentSeconds: t.timeSpentSeconds || 0,
     }))
     const newSessions = (data.sessions || data.focusSessions || []).map(s => ({
-      id:              s.id || Date.now().toString(),
-      startedAt:       s.startedAt || new Date().toISOString(),
+      id: s.id || Date.now().toString(),
+      startedAt: s.startedAt || new Date().toISOString(),
       durationSeconds: s.durationSeconds || 0,
-      mode:            s.mode || 'focus',
-      completed:       s.completed ?? true,
-      taskId:          s.linkedTaskId || s.taskId || null,
+      mode: s.mode || 'focus',
+      completed: s.completed ?? true,
+      taskId: s.linkedTaskId || s.taskId || null,
     }))
 
     persistTodos(newTodos)
     setSessions(newSessions)
-    try { localStorage.setItem('focus-sessions', JSON.stringify(newSessions)) } catch {}
+    try { localStorage.setItem('focus-sessions', JSON.stringify(newSessions)) } catch { }
     setShowSettings(false)
     setActiveTaskId(null)
   }
